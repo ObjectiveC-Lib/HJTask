@@ -19,12 +19,12 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (int32_t)setOperationWithSentinel:(int32_t)sentinel
                            executor:(nullable NSObject<HJTaskProtocol> *)executor
-                                key:(nullable NSString *)key
+                                key:(HJTaskKey)key
                            progress:(nullable HJTaskProgressBlock)progress
                          completion:(nullable HJTaskCompletionBlock)completion;
 
 - (int32_t)cancel;
-- (int32_t)cancelWithNewKey:(nullable NSString *)key;
+- (int32_t)cancelWithNewKey:(HJTaskKey)key;
 @end
 
 NS_ASSUME_NONNULL_END

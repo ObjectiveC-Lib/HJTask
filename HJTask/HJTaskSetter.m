@@ -13,7 +13,7 @@
 
 @implementation HJTaskSetter {
     dispatch_semaphore_t _lock;
-    NSString *_key;
+    HJTaskKey _key;
     NSOperation *_operation;
     int32_t _sentinel;
 }
@@ -43,16 +43,16 @@
     return queue;
 }
 
-- (NSString *)key {
+- (HJTaskKey)key {
     dispatch_semaphore_wait(_lock, DISPATCH_TIME_FOREVER);
-    NSString *key = _key;
+    HJTaskKey key = _key;
     dispatch_semaphore_signal(_lock);
     return key;
 }
 
 - (int32_t)setOperationWithSentinel:(int32_t)sentinel
                            executor:(nullable NSObject<HJTaskProtocol> *)executor
-                                key:(nullable NSString *)key
+                                key:(HJTaskKey)key
                            progress:(nullable HJTaskProgressBlock)progress
                          completion:(nullable HJTaskCompletionBlock)completion {
     if (sentinel != _sentinel) {
@@ -87,7 +87,7 @@
     return [self cancelWithNewKey:nil];
 }
 
-- (int32_t)cancelWithNewKey:(nullable NSString *)key {
+- (int32_t)cancelWithNewKey:(HJTaskKey)key {
     int32_t sentinel;
     
     dispatch_semaphore_wait(_lock, DISPATCH_TIME_FOREVER);

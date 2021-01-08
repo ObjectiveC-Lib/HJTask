@@ -11,11 +11,11 @@
 
 @implementation NSObject (HJTaskProtocol)
 
-- (NSString *)taskKey {
+- (HJTaskKey)taskKey {
     return objc_getAssociatedObject(self, _cmd);
 }
 
-- (void)setTaskKey:(NSString *)taskKey {
+- (void)setTaskKey:(HJTaskKey)taskKey {
     objc_setAssociatedObject(self, @selector(taskKey), taskKey, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 }
 

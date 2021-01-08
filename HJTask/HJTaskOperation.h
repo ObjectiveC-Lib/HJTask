@@ -14,11 +14,11 @@ NS_ASSUME_NONNULL_BEGIN
 @protocol HJTaskProtocol;
 
 @interface HJTaskOperation : NSOperation
-@property (nonatomic, strong, readonly) NSString *key;              ///< The cache key.
+@property (nonatomic, strong, readonly) HJTaskKey key;
 
 - (instancetype)init UNAVAILABLE_ATTRIBUTE;
 + (instancetype)new UNAVAILABLE_ATTRIBUTE;
-- (instancetype)initWithKey:(nullable NSString *)key
+- (instancetype)initWithKey:(HJTaskKey)key
                    executor:(nullable NSObject<HJTaskProtocol> *)executor
                    progress:(nullable HJTaskProgressBlock)progress
                  completion:(nullable HJTaskCompletionBlock)completion NS_DESIGNATED_INITIALIZER;

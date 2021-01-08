@@ -123,10 +123,10 @@ static UIApplication *HJSharedApplication() {
     @throw [NSException exceptionWithName:@"HJTaskOperation init error"
                                    reason:@"HJTaskOperation must be initialized with a request. Use the designated initializer to init."
                                  userInfo:nil];
-    return [self initWithKey:@"" executor:nil progress:nil completion:nil];
+    return [self initWithKey:HJTaskKeyInvalid executor:nil progress:nil completion:nil];
 }
 
-- (instancetype)initWithKey:(nullable NSString *)key
+- (instancetype)initWithKey:(HJTaskKey)key
                    executor:(nullable NSObject<HJTaskProtocol> *)executor
                    progress:(nullable HJTaskProgressBlock)progress
                  completion:(nullable HJTaskCompletionBlock)completion  {
@@ -161,7 +161,7 @@ static UIApplication *HJSharedApplication() {
     if ([self isCancelled]) return;
     
     @autoreleasepool {
-        if (_key) {
+        if (_executor) {
             __weak typeof(self) _self = self;
             
             dispatch_async([self.class taskQueue], ^{
