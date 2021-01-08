@@ -4,7 +4,7 @@ Pod::Spec.new do |s|
 
   s.ios.deployment_target = '9.0'
 
-  s.summary         = 'task for nsoperation'
+  s.summary         = 'Task for NSOperation'
   s.homepage        = 'https://github.com/ObjectiveC-Lib/HJTask'
   s.source          = { :git => 'https://github.com/ObjectiveC-Lib/HJTask.git', :tag => s.version }
   s.license         = { :type => 'MIT', :file => 'LICENSE' }

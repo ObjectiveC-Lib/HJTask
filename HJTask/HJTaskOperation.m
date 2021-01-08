@@ -95,27 +95,24 @@ static UIApplication *HJSharedApplication() {
 
 - (void)dealloc {
     [_lock lock];
-    if (_taskID != UIBackgroundTaskInvalid) {
-        [HJSharedApplication() endBackgroundTask:_taskID];
-        _taskID = UIBackgroundTaskInvalid;
-    }
-    
     if ([self isExecuting]) {
-        self.cancelled = YES;
-        self.finished = YES;
-        
         if (_executor) {
             [_executor cancelTask];
-            _executor = nil;
+        } else {
+            NSError *error = [NSError errorWithDomain:NSURLErrorDomain
+                                                 code:NSURLErrorCancelled
+                                             userInfo:@{ NSLocalizedDescriptionKey : @"HJTaskOperation cancelled Task" }];
+            if (_completion) {
+                @autoreleasepool {
+                    _completion(_key, HJTaskStageCancelled, nil, error);
+                }
+            }
+            self.cancelled = YES;
+            [self finishOperation];
         }
-        
-        //        if (_completion) {
-        //            @autoreleasepool {
-        //                _completion(_key, HJTaskStageCancelled, nil, nil);
-        //            }
-        //        }
+    } else {
+        [self finishOperation];
     }
-    
     [_lock unlock];
 }
 
@@ -123,10 +120,10 @@ static UIApplication *HJSharedApplication() {
     @throw [NSException exceptionWithName:@"HJTaskOperation init error"
                                    reason:@"HJTaskOperation must be initialized with a request. Use the designated initializer to init."
                                  userInfo:nil];
-    return [self initWithKey:@"" executor:nil progress:nil completion:nil];
+    return [self initWithKey:HJTaskKeyInvalid executor:nil progress:nil completion:nil];
 }
 
-- (instancetype)initWithKey:(nullable NSString *)key
+- (instancetype)initWithKey:(HJTaskKey)key
                    executor:(nullable NSObject<HJTaskProtocol> *)executor
                    progress:(nullable HJTaskProgressBlock)progress
                  completion:(nullable HJTaskCompletionBlock)completion  {
@@ -157,51 +154,42 @@ static UIApplication *HJSharedApplication() {
     [_lock unlock];
 }
 
-- (void)startOperation {
-    if ([self isCancelled]) return;
-    
-    @autoreleasepool {
-        if (_key) {
-            __weak typeof(self) _self = self;
-            
-            dispatch_async([self.class taskQueue], ^{
-                __strong typeof(_self) self = _self;
-                
-                if (!self || [self isCancelled]) return;
-                
-                [self performSelector:@selector(startTask:)
-                             onThread:[self.class networkThread]
-                           withObject:nil
-                        waitUntilDone:NO];
-            });
-            
-            return;
-        }
-    }
-    
-    [self performSelector:@selector(startTask:)
-                 onThread:[self.class networkThread]
-               withObject:nil
-            waitUntilDone:NO];
+- (void)finishOperation {
+    self.executing = NO;
+    self.finished = YES;
+    [self endBackgroundTask];
 }
 
 - (void)cancelOperation {
     @autoreleasepool {
         if (_executor) {
             [_executor cancelTask];
-            _executor = nil;
+        } else {
+            NSError *error = [NSError errorWithDomain:NSURLErrorDomain
+                                                 code:NSURLErrorCancelled
+                                             userInfo:@{ NSLocalizedDescriptionKey : @"HJTaskOperation cancelled Task" }];
+            if (_completion) _completion(_key, HJTaskStageCancelled, nil, error);
+            
+            self.cancelled = YES;
+            [self finishOperation];
         }
-        
-        //    if (_completion) _completion(_key, HJTaskStageCancelled, nil, nil);
-        
-        [self endBackgroundTask];
     }
 }
 
-- (void)finishOperation {
-    self.executing = NO;
-    self.finished = YES;
-    [self endBackgroundTask];
+- (void)startOperation {
+    if ([self isCancelled]) return;
+    
+    @autoreleasepool {
+        __weak typeof(self) _self = self;
+        dispatch_async([self.class taskQueue], ^{
+            __strong typeof(_self) self = _self;
+            if (!self || [self isCancelled]) return;
+            [self performSelector:@selector(startTask:)
+                         onThread:[self.class networkThread]
+                       withObject:nil
+                    waitUntilDone:NO];
+        });
+    }
 }
 
 - (void)startTask:(id)object {
@@ -210,37 +198,9 @@ static UIApplication *HJSharedApplication() {
     @autoreleasepool {
         [_lock lock];
         if (![self isCancelled]) {
-            __weak typeof(self) _self = self;
-            
-            if (!_executor) {
-                NSError *error = [NSError errorWithDomain:NSURLErrorDomain
-                                                     code:NSURLErrorFileDoesNotExist
-                                                 userInfo:@{ NSLocalizedDescriptionKey : @"Failed to init Task." }];
-                if (_completion) _completion(_key, HJTaskStageFinished, nil, error);
-                [self finishOperation];
-                return;
+            if (_executor) {
+                [_executor startTask];
             }
-            
-            _executor.taskKey = _key;
-            
-            if (_progress) {
-                _progress = _executor.taskProgress;
-            }
-            
-            _executor.taskResult = ^(HJTaskStage stage, NSDictionary<NSString *,id> * _Nullable callbackInfo, NSError * _Nullable error) {
-                __strong typeof(_self) self = _self;
-                
-                if (HJTaskStageFinished == stage) {
-                    [self performSelector:@selector(finishOperation)
-                                 onThread:[self.class networkThread]
-                               withObject:nil
-                            waitUntilDone:NO];
-                }
-                
-                if (self->_completion) self->_completion(self->_key, stage, callbackInfo, error);
-            };
-            
-            [_executor startTask];
         }
         [_lock unlock];
     }
@@ -259,27 +219,54 @@ static UIApplication *HJSharedApplication() {
                        withObject:nil
                     waitUntilDone:NO
                             modes:@[NSDefaultRunLoopMode]];
-            self.finished = YES;
-            
         } else if ([self isReady] && ![self isFinished] && ![self isExecuting]) {
             self.executing = YES;
-            [self performSelector:@selector(startOperation)
-                         onThread:[[self class] networkThread]
-                       withObject:nil
-                    waitUntilDone:NO
-                            modes:@[NSDefaultRunLoopMode]];
-            BOOL allowBackground = _executor?_executor.allowBackground:YES;
-            if (allowBackground && HJSharedApplication()) {
-                __weak __typeof__ (self) _self = self;
-                if (_taskID == UIBackgroundTaskInvalid) {
-                    _taskID = [HJSharedApplication() beginBackgroundTaskWithExpirationHandler:^{
-                        __strong __typeof (_self) self = _self;
-                        if (self) {
-                            [self cancel];
-                            self.finished = YES;
-                        }
-                    }];
+            
+            if (_executor) {
+                __weak typeof(self) _self = self;
+                _executor.taskProgress = ^(HJTaskKey key, NSProgress * _Nullable progress) {
+                    __strong typeof(_self) self = _self;
+                    if (self->_progress) self->_progress(key, progress);
+                };
+                _executor.taskCompletion = ^(HJTaskKey key,
+                                             HJTaskStage stage,
+                                             NSDictionary<NSString *,id> * _Nullable callbackInfo,
+                                             NSError * _Nullable error) {
+                    __strong typeof(_self) self = _self;
+                    if (self->_completion) self->_completion(key, stage, callbackInfo, error);
+                    [self performSelector:@selector(finishOperation)
+                                 onThread:[self.class networkThread]
+                               withObject:nil
+                            waitUntilDone:NO];
+                };
+                
+                [self performSelector:@selector(startOperation)
+                             onThread:[[self class] networkThread]
+                           withObject:nil
+                        waitUntilDone:NO
+                                modes:@[NSDefaultRunLoopMode]];
+                
+                BOOL allowBackground = _executor.allowBackground;
+                if (allowBackground && HJSharedApplication()) {
+                    __weak __typeof__ (self) _self = self;
+                    if (_taskID == UIBackgroundTaskInvalid) {
+                        _taskID = [HJSharedApplication() beginBackgroundTaskWithExpirationHandler:^{
+                            __strong __typeof (_self) self = _self;
+                            if (self) {
+                                [self cancel];
+                            }
+                        }];
+                    }
                 }
+            } else {
+                NSError *error = [NSError errorWithDomain:NSURLErrorDomain
+                                                     code:NSURLErrorFileDoesNotExist
+                                                 userInfo:@{ NSLocalizedDescriptionKey : @"HJTaskOperation executor in nil" }];
+                if (_completion) _completion(_key, HJTaskStageFinished, nil, error);
+                [self performSelector:@selector(finishOperation)
+                             onThread:[self.class networkThread]
+                           withObject:nil
+                        waitUntilDone:NO];
             }
         }
         [_lock unlock];
@@ -290,19 +277,17 @@ static UIApplication *HJSharedApplication() {
     [_lock lock];
     if (![self isCancelled]) {
         [super cancel];
-        self.cancelled = YES;
-        
         if ([self isExecuting]) {
-            self.executing = NO;
             [self performSelector:@selector(cancelOperation)
                          onThread:[[self class] networkThread]
                        withObject:nil
                     waitUntilDone:NO
                             modes:@[NSDefaultRunLoopMode]];
-        }
-        
-        if (self.started) {
-            self.finished = YES;
+        } else {
+            self.cancelled = YES;
+            if (self.started) {
+                self.finished = YES;
+            }
         }
     }
     [_lock unlock];

@@ -12,7 +12,7 @@
 @implementation HJTaskQueue
 
 - (instancetype)init {
-    @throw [NSException exceptionWithName:@"HJTaskManager init error"
+    @throw [NSException exceptionWithName:@"HJTaskQueue init error"
                                    reason:@"Use the designated initializer to init."
                                  userInfo:nil];
     return [self initWithQueue:nil];
@@ -39,7 +39,7 @@
 }
 
 - (nullable HJTaskOperation *)executor:(nullable NSObject<HJTaskProtocol> *)executor
-                                   key:(NSString *)key
+                                   key:(HJTaskKey)key
                               progress:(nullable HJTaskProgressBlock)progress
                             completion:(nullable HJTaskCompletionBlock)completion {
     HJTaskOperation *operation = [[HJTaskOperation alloc] initWithKey:key

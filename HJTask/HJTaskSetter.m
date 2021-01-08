@@ -11,19 +11,18 @@
 #import "HJTaskOperation.h"
 #import "HJTaskQueue.h"
 
+#define Lock() dispatch_semaphore_wait(self->_lock, DISPATCH_TIME_FOREVER)
+#define Unlock() dispatch_semaphore_signal(self->_lock)
+
 @implementation HJTaskSetter {
     dispatch_semaphore_t _lock;
-    NSString *_key;
-    NSOperation *_operation;
+    HJTaskKey _key;
+    HJTaskOperation *_operation;
     int32_t _sentinel;
 }
 
 - (void)dealloc {
     OSAtomicIncrement32(&_sentinel);
-    
-    if ([_operation isExecuting]) {
-        [_operation cancel];
-    }
     _operation = nil;
 }
 
@@ -43,42 +42,49 @@
     return queue;
 }
 
-- (NSString *)key {
-    dispatch_semaphore_wait(_lock, DISPATCH_TIME_FOREVER);
-    NSString *key = _key;
-    dispatch_semaphore_signal(_lock);
+- (HJTaskKey)key {
+    Lock();
+    HJTaskKey key = _key;
+    Unlock();
     return key;
 }
 
 - (int32_t)setOperationWithSentinel:(int32_t)sentinel
                            executor:(nullable NSObject<HJTaskProtocol> *)executor
-                                key:(nullable NSString *)key
+                                key:(HJTaskKey)key
                            progress:(nullable HJTaskProgressBlock)progress
                          completion:(nullable HJTaskCompletionBlock)completion {
     if (sentinel != _sentinel) {
-        if (completion) completion(key, HJTaskStageCancelled, nil, nil);
+        NSError *error = [NSError errorWithDomain:@"com.hj.task"
+                                             code:-1
+                                         userInfo:@{ NSLocalizedDescriptionKey : @"Failed to init Sentinel" }];
+        if (completion) completion(key, HJTaskStageFinished, nil, error);
         return _sentinel;
     }
     
-    NSOperation *operation = [[HJTaskQueue sharedInstance] executor:executor
-                                                                key:key
-                                                           progress:progress
-                                                         completion:completion];
+    HJTaskOperation *operation = [[HJTaskQueue sharedInstance] executor:executor
+                                                                    key:key
+                                                               progress:progress
+                                                             completion:completion];
     
     if (!operation && completion) {
-        NSDictionary *userInfo = @{ NSLocalizedDescriptionKey : @"HJTaskOperation create failed." };
-        completion(key, HJTaskStageFinished, nil, [NSError errorWithDomain:@"com.hj.task" code:-1 userInfo:userInfo]);
+        NSError *error = [NSError errorWithDomain:@"com.hj.task"
+                                             code:-1
+                                         userInfo:@{ NSLocalizedDescriptionKey : @"HJTaskOperation create failed." }];
+        completion(key, HJTaskStageFinished, nil, error);
     }
     
-    dispatch_semaphore_wait(_lock, DISPATCH_TIME_FOREVER);
+    Lock();
     if (sentinel == _sentinel) {
-        if (_operation) [_operation cancel];
+        if (_operation) {
+            [_operation cancel];
+        }
         _operation = operation;
         sentinel = OSAtomicIncrement32(&_sentinel);
     } else {
         [operation cancel];
     }
-    dispatch_semaphore_signal(_lock);
+    Unlock();
     
     return sentinel;
 }
@@ -87,10 +93,10 @@
     return [self cancelWithNewKey:nil];
 }
 
-- (int32_t)cancelWithNewKey:(nullable NSString *)key {
+- (int32_t)cancelWithNewKey:(HJTaskKey)key {
     int32_t sentinel;
     
-    dispatch_semaphore_wait(_lock, DISPATCH_TIME_FOREVER);
+    Lock();
     if (_operation) {
         [_operation cancel];
         _operation = nil;
@@ -99,7 +105,7 @@
     _key = key;
     
     sentinel = OSAtomicIncrement32(&_sentinel);
-    dispatch_semaphore_signal(_lock);
+    Unlock();
     
     return sentinel;
 }

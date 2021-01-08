@@ -18,25 +18,27 @@ static inline void hj_dispatch_sync_on_main_queue(void (^ _Nullable block)(void)
     }
 }
 
+#define Lock() dispatch_semaphore_wait(self->_lock, DISPATCH_TIME_FOREVER)
+#define Unlock() dispatch_semaphore_signal(self->_lock)
+
 
 @interface HJTaskManager ()
 @property (nonatomic, strong) NSMutableDictionary *setters;
 @end
 
-
 @implementation HJTaskManager {
     dispatch_semaphore_t _lock;
 }
 
-- (id)init {
-    if ((self = [super init])) {
+- (instancetype)init {
+    if (self = [super init]) {
         _lock = dispatch_semaphore_create(1);
         _setters = [NSMutableDictionary dictionary];
     }
     return self;
 }
 
-+ (HJTaskManager *)sharedInstance {
++ (instancetype)sharedInstance {
     static dispatch_once_t once;
     static HJTaskManager *sharedInstance;
     dispatch_once(&once, ^ {
@@ -45,67 +47,69 @@ static inline void hj_dispatch_sync_on_main_queue(void (^ _Nullable block)(void)
     return sharedInstance;
 }
 
-- (void)executor:(nullable NSObject<HJTaskProtocol> *)executor
-             key:(NSString *)key
-        progress:(nullable HJTaskProgressBlock)progress
-      completion:(nullable HJTaskCompletionBlock)completion {
-    if (!executor) return;
-    if (!key) return;
+- (HJTaskKey)executor:(nullable NSObject<HJTaskProtocol> *)executor
+             progress:(nullable HJTaskProgressBlock)progress
+           completion:(nullable HJTaskCompletionBlock)completion {
+    if (!executor) return HJTaskKeyInvalid;
     
+    Lock();
+    HJTaskKey key = executor.taskKey;
     HJTaskSetter *setter = _setters[key];
     if (!setter) {
         setter = [HJTaskSetter new];
-        dispatch_semaphore_wait(_lock, DISPATCH_TIME_FOREVER);
         _setters[key] = setter;
-        dispatch_semaphore_signal(_lock);
     }
-    
     int32_t sentinel = [setter cancelWithNewKey:key];
+    Unlock();
     
-    hj_dispatch_sync_on_main_queue(^{
-        __weak typeof(self) _self = self;
+    __weak typeof(self) weakself = self;
+    dispatch_async([HJTaskSetter setterQueue], ^{
+        HJTaskProgressBlock _progress = nil;
+        if (progress) {
+            _progress = ^(HJTaskKey key, NSProgress *taskProgress) {
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    progress(key, taskProgress);
+                });
+            };
+        }
         
-        dispatch_async([HJTaskSetter setterQueue], ^{
-            HJTaskProgressBlock _progress = nil;
-            if (progress) _progress = ^(NSProgress *taskProgress) {
-                dispatch_async(dispatch_get_main_queue(), ^{
-                    progress(taskProgress);
-                });
-            };
-            
-            __block int32_t newSentinel = 0;
-            __block __weak typeof(setter) weakSetter = nil;
-            HJTaskCompletionBlock _completion = ^(NSString *key, HJTaskStage stage, NSDictionary *callbackInfo, NSError *error) {
-                NSLog(@"key = %@", key);
-                
-                __strong typeof(_self) self = _self;
-                dispatch_async(dispatch_get_main_queue(), ^{
-                    BOOL sentinelChanged = weakSetter && weakSetter.sentinel != newSentinel;
-                    if (completion) {
-                        if (sentinelChanged) {
-                            completion(key, HJTaskStageCancelled, callbackInfo, error);
-                        } else {
-                            completion(key, stage, callbackInfo, error);
-                        }
-                        dispatch_semaphore_wait(self->_lock, DISPATCH_TIME_FOREVER);
-                        [self.setters removeObjectForKey:key];
-                        dispatch_semaphore_signal(self->_lock);
+        __block int32_t newSentinel = 0;
+        __block __weak typeof(setter) weakSetter = nil;
+        HJTaskCompletionBlock _completion = ^(HJTaskKey key, HJTaskStage stage, NSDictionary *callbackInfo, NSError *error) {
+            __strong typeof(weakself) self = weakself;
+            dispatch_async(dispatch_get_main_queue(), ^{
+                BOOL sentinelChanged = weakSetter && weakSetter.sentinel != newSentinel;
+                if (completion) {
+                    if (sentinelChanged) {
+                        completion(key, HJTaskStageCancelled, callbackInfo, error);
+                    } else {
+                        completion(key, stage, callbackInfo, error);
                     }
-                });
-            };
-            newSentinel = [setter setOperationWithSentinel:sentinel
-                                                  executor:executor
-                                                       key:key
-                                                  progress:_progress
-                                                completion:_completion];
-            weakSetter = setter;
-        });
+                    Lock();
+                    [self.setters removeObjectForKey:key];
+                    Unlock();
+                }
+            });
+        };
+        
+        newSentinel = [setter setOperationWithSentinel:sentinel
+                                              executor:executor
+                                                   key:key
+                                              progress:_progress
+                                            completion:_completion];
+        weakSetter = setter;
     });
+    
+    return key;
 }
 
-- (void)cancelWithKey:(NSString *)key {
+- (void)cancelWithKey:(HJTaskKey)key {
+    if (key == HJTaskKeyInvalid) return;
+    
+    Lock();
     HJTaskSetter *setter = _setters[key];
     if (setter) [setter cancel];
+    Unlock();
 }
 
 @end

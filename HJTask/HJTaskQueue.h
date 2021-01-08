@@ -22,7 +22,7 @@ NS_ASSUME_NONNULL_BEGIN
 + (instancetype)sharedInstance;
 
 - (nullable HJTaskOperation *)executor:(nullable NSObject<HJTaskProtocol> *)executor
-                                   key:(NSString *)key
+                                   key:(HJTaskKey)key
                               progress:(nullable HJTaskProgressBlock)progress
                             completion:(nullable HJTaskCompletionBlock)completion;
 @end
