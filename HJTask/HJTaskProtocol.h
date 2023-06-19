@@ -37,7 +37,7 @@ typedef void (^HJTaskProgressBlock)(HJTaskKey key, NSProgress * _Nullable taskPr
 
 typedef void (^HJTaskCompletionBlock)(HJTaskKey key,
                                       HJTaskStage stage,
-                                      NSDictionary<NSString *, id> *_Nullable callbackInfo,
+                                      id _Nullable callbackInfo,
                                       NSError *_Nullable error);
 
 NS_ASSUME_NONNULL_BEGIN

@@ -230,7 +230,7 @@ static UIApplication *HJSharedApplication() {
                 };
                 _executor.taskCompletion = ^(HJTaskKey key,
                                              HJTaskStage stage,
-                                             NSDictionary<NSString *,id> * _Nullable callbackInfo,
+                                             id _Nullable callbackInfo,
                                              NSError * _Nullable error) {
                     __strong typeof(_self) self = _self;
                     if (self->_completion) self->_completion(key, stage, callbackInfo, error);

@@ -75,7 +75,7 @@ static inline void hj_dispatch_sync_on_main_queue(void (^ _Nullable block)(void)
         
         __block int32_t newSentinel = 0;
         __block __weak typeof(setter) weakSetter = nil;
-        HJTaskCompletionBlock _completion = ^(HJTaskKey key, HJTaskStage stage, NSDictionary *callbackInfo, NSError *error) {
+        HJTaskCompletionBlock _completion = ^(HJTaskKey key, HJTaskStage stage, id callbackInfo, NSError *error) {
             __strong typeof(weakself) self = weakself;
             dispatch_async(dispatch_get_main_queue(), ^{
                 BOOL sentinelChanged = weakSetter && weakSetter.sentinel != newSentinel;
