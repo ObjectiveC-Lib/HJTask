@@ -7,7 +7,7 @@
 //
 
 #import "HJTaskManager.h"
-#import <pthread.h>
+#import <pthread/pthread.h>
 #import "HJTaskSetter.h"
 
 static inline void hj_dispatch_sync_on_main_queue(void (^ _Nullable block)(void)) {
@@ -18,8 +18,8 @@ static inline void hj_dispatch_sync_on_main_queue(void (^ _Nullable block)(void)
     }
 }
 
-#define Lock() dispatch_semaphore_wait(self->_lock, DISPATCH_TIME_FOREVER)
-#define Unlock() dispatch_semaphore_signal(self->_lock)
+#define Lock() pthread_mutex_lock(&_lock)
+#define Unlock() pthread_mutex_unlock(&_lock)
 
 
 @interface HJTaskManager ()
@@ -27,12 +27,12 @@ static inline void hj_dispatch_sync_on_main_queue(void (^ _Nullable block)(void)
 @end
 
 @implementation HJTaskManager {
-    dispatch_semaphore_t _lock;
+    pthread_mutex_t _lock;
 }
 
 - (instancetype)init {
     if (self = [super init]) {
-        _lock = dispatch_semaphore_create(1);
+        pthread_mutex_init(&_lock, NULL);
         _setters = [NSMutableDictionary dictionary];
     }
     return self;

@@ -8,14 +8,15 @@
 
 #import "HJTaskSetter.h"
 #import <libkern/OSAtomic.h>
+#import <pthread/pthread.h>
 #import "HJTaskOperation.h"
 #import "HJTaskQueue.h"
 
-#define Lock() dispatch_semaphore_wait(self->_lock, DISPATCH_TIME_FOREVER)
-#define Unlock() dispatch_semaphore_signal(self->_lock)
+#define Lock() pthread_mutex_lock(&_lock)
+#define Unlock() pthread_mutex_unlock(&_lock)
 
 @implementation HJTaskSetter {
-    dispatch_semaphore_t _lock;
+    pthread_mutex_t _lock;
     HJTaskKey _key;
     HJTaskOperation *_operation;
     int32_t _sentinel;
@@ -28,7 +29,7 @@
 
 - (instancetype)init {
     self = [super init];
-    _lock = dispatch_semaphore_create(1);
+    pthread_mutex_init(&_lock, NULL);
     return self;
 }
 

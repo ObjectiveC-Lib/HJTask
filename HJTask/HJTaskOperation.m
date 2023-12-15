@@ -57,9 +57,9 @@ static UIApplication *HJSharedApplication() {
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
         thread = [[NSThread alloc] initWithTarget:self selector:@selector(networkThreadMain:) object:nil];
-        // if ([thread respondsToSelector:@selector(setQualityOfService:)]) {
-        //      thread.qualityOfService = NSQualityOfServiceBackground;
-        // }
+        if ([thread respondsToSelector:@selector(setQualityOfService:)]) {
+            thread.qualityOfService = NSQualityOfServiceBackground;
+        }
         [thread start];
     });
     return thread;

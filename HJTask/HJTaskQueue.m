@@ -30,9 +30,9 @@
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
         NSOperationQueue *queue = [NSOperationQueue new];
-        //  if ([queue respondsToSelector:@selector(setQualityOfService:)]) {
-        //      queue.qualityOfService = NSQualityOfServiceBackground;
-        //  }
+        if ([queue respondsToSelector:@selector(setQualityOfService:)]) {
+            queue.qualityOfService = NSQualityOfServiceBackground;
+        }
         manager = [[self alloc] initWithQueue:queue];
     });
     return manager;
