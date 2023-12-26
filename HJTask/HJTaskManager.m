@@ -30,6 +30,10 @@ static inline void hj_dispatch_sync_on_main_queue(void (^ _Nullable block)(void)
     pthread_mutex_t _lock;
 }
 
+- (void)dealloc {
+    pthread_mutex_destroy(&_lock);
+}
+
 - (instancetype)init {
     if (self = [super init]) {
         pthread_mutex_init(&_lock, NULL);

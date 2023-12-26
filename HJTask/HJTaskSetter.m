@@ -25,6 +25,7 @@
 - (void)dealloc {
     OSAtomicIncrement32(&_sentinel);
     _operation = nil;
+    pthread_mutex_destroy(&_lock);
 }
 
 - (instancetype)init {
