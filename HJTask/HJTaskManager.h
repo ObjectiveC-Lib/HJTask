@@ -13,8 +13,6 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface HJTaskManager : NSObject
 
-+ (instancetype)sharedInstance;
-
 - (HJTaskKey)executor:(nullable NSObject<HJTaskProtocol> *)executor
              progress:(nullable HJTaskProgressBlock)progress
            completion:(nullable HJTaskCompletionBlock)completion;

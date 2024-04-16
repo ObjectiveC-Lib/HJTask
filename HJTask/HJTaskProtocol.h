@@ -18,7 +18,7 @@ typedef NS_ENUM(NSInteger, HJTaskStage) {
 typedef NSString * _Nullable HJTaskKey;
 static const HJTaskKey HJTaskKeyInvalid = nil;
 
-static inline HJTaskKey HJCreateTaskKey(NSString *identifier) {
+static inline HJTaskKey HJCreateTaskKey(NSString * _Nullable identifier) {
     if (identifier == nil || [identifier length] <= 0) return HJTaskKeyInvalid;;
     
     const char *value = [identifier UTF8String];
@@ -44,10 +44,11 @@ NS_ASSUME_NONNULL_BEGIN
 
 @protocol HJTaskProtocol <NSObject>
 @optional
-@property (nonatomic, assign) BOOL allowBackground;         // default: NO
 @property (nonatomic,   copy) HJTaskKey _Nullable taskKey;
 @property (nonatomic,   copy) HJTaskProgressBlock _Nullable taskProgress;
 @property (nonatomic,   copy) HJTaskCompletionBlock _Nullable taskCompletion;
+@property (nonatomic, assign) BOOL taskAllowBackground;         // default: NO
+@property (nonatomic, assign) NSInteger taskMaxConcurrentCount; // default: 0, (<=0:无限制)
 
 - (void)startTask;
 - (void)cancelTask;

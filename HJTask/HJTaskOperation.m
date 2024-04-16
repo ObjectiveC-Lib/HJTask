@@ -41,8 +41,8 @@ static UIApplication *HJSharedApplication() {
 @synthesize finished = _finished;
 @synthesize cancelled = _cancelled;
 
-/// Network thread entry point.
-+ (void)networkThreadMain:(id)object {
+/// Task thread entry point.
++ (void)taskThreadMain:(id)object {
     @autoreleasepool {
         [[NSThread currentThread] setName:@"com.hj.task"];
         NSRunLoop *runLoop = [NSRunLoop currentRunLoop];
@@ -51,12 +51,12 @@ static UIApplication *HJSharedApplication() {
     }
 }
 
-/// Global request network thread
-+ (NSThread *)networkThread {
+/// Global task thread
++ (NSThread *)taskThread {
     static NSThread *thread = nil;
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
-        thread = [[NSThread alloc] initWithTarget:self selector:@selector(networkThreadMain:) object:nil];
+        thread = [[NSThread alloc] initWithTarget:self selector:@selector(taskThreadMain:) object:nil];
         if ([thread respondsToSelector:@selector(setQualityOfService:)]) {
             thread.qualityOfService = NSQualityOfServiceBackground;
         }
@@ -94,6 +94,8 @@ static UIApplication *HJSharedApplication() {
 }
 
 - (void)dealloc {
+    // NSLog(@"HJTaskOperation_dealloc");
+    
     [_lock lock];
     if ([self isExecuting]) {
         if (_executor) {
@@ -185,7 +187,7 @@ static UIApplication *HJSharedApplication() {
             __strong typeof(_self) self = _self;
             if (!self || [self isCancelled]) return;
             [self performSelector:@selector(startTask:)
-                         onThread:[self.class networkThread]
+                         onThread:[self.class taskThread]
                        withObject:nil
                     waitUntilDone:NO];
         });
@@ -215,7 +217,7 @@ static UIApplication *HJSharedApplication() {
         
         if ([self isCancelled]) {
             [self performSelector:@selector(cancelOperation)
-                         onThread:[[self class] networkThread]
+                         onThread:[[self class] taskThread]
                        withObject:nil
                     waitUntilDone:NO
                             modes:@[NSDefaultRunLoopMode]];
@@ -235,18 +237,18 @@ static UIApplication *HJSharedApplication() {
                     __strong typeof(_self) self = _self;
                     if (self->_completion) self->_completion(key, stage, callbackInfo, error);
                     [self performSelector:@selector(finishOperation)
-                                 onThread:[self.class networkThread]
+                                 onThread:[self.class taskThread]
                                withObject:nil
                             waitUntilDone:NO];
                 };
                 
                 [self performSelector:@selector(startOperation)
-                             onThread:[[self class] networkThread]
+                             onThread:[[self class] taskThread]
                            withObject:nil
                         waitUntilDone:NO
                                 modes:@[NSDefaultRunLoopMode]];
                 
-                BOOL allowBackground = _executor.allowBackground;
+                BOOL allowBackground = _executor.taskAllowBackground;
                 if (allowBackground && HJSharedApplication()) {
                     __weak __typeof__ (self) _self = self;
                     if (_taskID == UIBackgroundTaskInvalid) {
@@ -264,7 +266,7 @@ static UIApplication *HJSharedApplication() {
                                                  userInfo:@{ NSLocalizedDescriptionKey : @"HJTaskOperation executor in nil" }];
                 if (_completion) _completion(_key, HJTaskStageFinished, nil, error);
                 [self performSelector:@selector(finishOperation)
-                             onThread:[self.class networkThread]
+                             onThread:[self.class taskThread]
                            withObject:nil
                         waitUntilDone:NO];
             }
@@ -279,7 +281,7 @@ static UIApplication *HJSharedApplication() {
         [super cancel];
         if ([self isExecuting]) {
             [self performSelector:@selector(cancelOperation)
-                         onThread:[[self class] networkThread]
+                         onThread:[[self class] taskThread]
                        withObject:nil
                     waitUntilDone:NO
                             modes:@[NSDefaultRunLoopMode]];

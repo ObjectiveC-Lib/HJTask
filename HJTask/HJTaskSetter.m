@@ -10,7 +10,6 @@
 #import <libkern/OSAtomic.h>
 #import <pthread/pthread.h>
 #import "HJTaskOperation.h"
-#import "HJTaskQueue.h"
 
 #define Lock() pthread_mutex_lock(&_lock)
 #define Unlock() pthread_mutex_unlock(&_lock)
@@ -23,6 +22,8 @@
 }
 
 - (void)dealloc {
+    // NSLog(@"HJTaskSetter_dealloc");
+    
     OSAtomicIncrement32(&_sentinel);
     _operation = nil;
     pthread_mutex_destroy(&_lock);
@@ -32,16 +33,6 @@
     self = [super init];
     pthread_mutex_init(&_lock, NULL);
     return self;
-}
-
-+ (dispatch_queue_t)setterQueue {
-    static dispatch_queue_t queue;
-    static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
-        queue = dispatch_queue_create("com.hj.task.setter", DISPATCH_QUEUE_SERIAL);
-        dispatch_set_target_queue(queue, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0));
-    });
-    return queue;
 }
 
 - (HJTaskKey)key {
@@ -54,6 +45,7 @@
 - (int32_t)setOperationWithSentinel:(int32_t)sentinel
                            executor:(nullable NSObject<HJTaskProtocol> *)executor
                                 key:(HJTaskKey)key
+                     operationQueue:(NSOperationQueue *)operationQueue
                            progress:(nullable HJTaskProgressBlock)progress
                          completion:(nullable HJTaskCompletionBlock)completion {
     if (sentinel != _sentinel) {
@@ -64,19 +56,22 @@
         return _sentinel;
     }
     
-    HJTaskOperation *operation = [[HJTaskQueue sharedInstance] executor:executor
-                                                                    key:key
-                                                               progress:progress
-                                                             completion:completion];
+    HJTaskOperation *operation = [[HJTaskOperation alloc] initWithKey:key
+                                                             executor:executor
+                                                             progress:progress
+                                                           completion:completion];
     
-    if (!operation && completion) {
+    if (!operation) {
         NSError *error = [NSError errorWithDomain:@"com.hj.task"
                                              code:-1
                                          userInfo:@{ NSLocalizedDescriptionKey : @"HJTaskOperation create failed." }];
-        completion(key, HJTaskStageFinished, nil, error);
+        if (completion) completion(key, HJTaskStageFinished, nil, error);
+        return _sentinel;
     }
     
     Lock();
+    [operationQueue addOperation:operation];
+    
     if (sentinel == _sentinel) {
         if (_operation) {
             [_operation cancel];

@@ -11,14 +11,6 @@
 
 @implementation NSObject (HJTaskProtocol)
 
-- (void)setAllowBackground:(BOOL)allowBackground {
-    objc_setAssociatedObject(self, @selector(allowBackground), @(allowBackground), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-}
-
-- (BOOL)allowBackground {
-    return [objc_getAssociatedObject(self, _cmd) boolValue];
-}
-
 - (HJTaskKey)taskKey {
     return objc_getAssociatedObject(self, _cmd);
 }
@@ -41,6 +33,22 @@
 
 - (void)setTaskCompletion:(HJTaskCompletionBlock)taskCompletion {
     objc_setAssociatedObject(self, @selector(taskCompletion), taskCompletion, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
+
+- (void)setTaskAllowBackground:(BOOL)taskAllowBackground {
+    objc_setAssociatedObject(self, @selector(taskAllowBackground), @(taskAllowBackground), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
+
+- (BOOL)taskAllowBackground {
+    return [objc_getAssociatedObject(self, _cmd) boolValue];
+}
+
+- (NSInteger)taskMaxConcurrentCount {
+    return [objc_getAssociatedObject(self, _cmd) integerValue];
+}
+
+- (void)setTaskMaxConcurrentCount:(NSInteger)taskMaxConcurrentCount {
+    objc_setAssociatedObject(self, @selector(taskMaxConcurrentCount), @(taskMaxConcurrentCount), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 }
 
 - (void)startTask {

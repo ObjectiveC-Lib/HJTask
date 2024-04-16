@@ -15,11 +15,10 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, readonly, nullable) NSString *key;
 @property (nonatomic, readonly) int32_t sentinel;
 
-+ (dispatch_queue_t)setterQueue;
-
 - (int32_t)setOperationWithSentinel:(int32_t)sentinel
                            executor:(nullable NSObject<HJTaskProtocol> *)executor
                                 key:(HJTaskKey)key
+                     operationQueue:(NSOperationQueue *)operationQueue
                            progress:(nullable HJTaskProgressBlock)progress
                          completion:(nullable HJTaskCompletionBlock)completion;
 

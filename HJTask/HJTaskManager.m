@@ -10,17 +10,8 @@
 #import <pthread/pthread.h>
 #import "HJTaskSetter.h"
 
-static inline void hj_dispatch_sync_on_main_queue(void (^ _Nullable block)(void)) {
-    if (pthread_main_np()) {
-        block();
-    } else {
-        dispatch_sync(dispatch_get_main_queue(), block);
-    }
-}
-
 #define Lock() pthread_mutex_lock(&_lock)
 #define Unlock() pthread_mutex_unlock(&_lock)
-
 
 @interface HJTaskManager ()
 @property (nonatomic, strong) NSMutableDictionary *setters;
@@ -28,6 +19,8 @@ static inline void hj_dispatch_sync_on_main_queue(void (^ _Nullable block)(void)
 
 @implementation HJTaskManager {
     pthread_mutex_t _lock;
+    dispatch_queue_t _queue;
+    NSOperationQueue *_operationQueue;
 }
 
 - (void)dealloc {
@@ -37,18 +30,15 @@ static inline void hj_dispatch_sync_on_main_queue(void (^ _Nullable block)(void)
 - (instancetype)init {
     if (self = [super init]) {
         pthread_mutex_init(&_lock, NULL);
+        _queue = dispatch_queue_create("com.hj.task.setter", DISPATCH_QUEUE_SERIAL);
+        dispatch_set_target_queue(_queue, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0));
+        _operationQueue = [NSOperationQueue new];
+        if ([_operationQueue respondsToSelector:@selector(setQualityOfService:)]) {
+            _operationQueue.qualityOfService = NSQualityOfServiceBackground;
+        }
         _setters = [NSMutableDictionary dictionary];
     }
     return self;
-}
-
-+ (instancetype)sharedInstance {
-    static dispatch_once_t once;
-    static HJTaskManager *sharedInstance;
-    dispatch_once(&once, ^ {
-        sharedInstance = [[self alloc] init];
-    });
-    return sharedInstance;
 }
 
 - (HJTaskKey)executor:(nullable NSObject<HJTaskProtocol> *)executor
@@ -57,6 +47,7 @@ static inline void hj_dispatch_sync_on_main_queue(void (^ _Nullable block)(void)
     if (!executor) return HJTaskKeyInvalid;
     
     Lock();
+    _operationQueue.maxConcurrentOperationCount = executor.taskMaxConcurrentCount>0?executor.taskMaxConcurrentCount:-1;
     HJTaskKey key = executor.taskKey;
     HJTaskSetter *setter = _setters[key];
     if (!setter) {
@@ -66,8 +57,8 @@ static inline void hj_dispatch_sync_on_main_queue(void (^ _Nullable block)(void)
     int32_t sentinel = [setter cancelWithNewKey:key];
     Unlock();
     
-    __weak typeof(self) weakself = self;
-    dispatch_async([HJTaskSetter setterQueue], ^{
+    __weak typeof(self) weakSelf = self;
+    dispatch_async(_queue, ^{
         HJTaskProgressBlock _progress = nil;
         if (progress) {
             _progress = ^(HJTaskKey key, NSProgress *taskProgress) {
@@ -80,7 +71,7 @@ static inline void hj_dispatch_sync_on_main_queue(void (^ _Nullable block)(void)
         __block int32_t newSentinel = 0;
         __block __weak typeof(setter) weakSetter = nil;
         HJTaskCompletionBlock _completion = ^(HJTaskKey key, HJTaskStage stage, id callbackInfo, NSError *error) {
-            __strong typeof(weakself) self = weakself;
+            __strong typeof(weakSelf) self = weakSelf;
             dispatch_async(dispatch_get_main_queue(), ^{
                 BOOL sentinelChanged = weakSetter && weakSetter.sentinel != newSentinel;
                 if (completion) {
@@ -99,6 +90,7 @@ static inline void hj_dispatch_sync_on_main_queue(void (^ _Nullable block)(void)
         newSentinel = [setter setOperationWithSentinel:sentinel
                                               executor:executor
                                                    key:key
+                                        operationQueue:_operationQueue
                                               progress:_progress
                                             completion:_completion];
         weakSetter = setter;
