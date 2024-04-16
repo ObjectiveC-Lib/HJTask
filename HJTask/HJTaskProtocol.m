@@ -1,15 +1,23 @@
 //
-//  NSObject+HJTaskProtocol.m
+//  HJTaskProtocol.h
 //  HJTask
 //
-//  Created by navy on 2021/1/5.
-//  Copyright © 2021 navy. All rights reserved.
+//  Created by navy on 2020/12/30.
+//  Copyright © 2020 navy. All rights reserved.
 //
 
-#import "NSObject+HJTaskProtocol.h"
+#import "HJTaskSetter.h"
 #import <objc/runtime.h>
 
 @implementation NSObject (HJTaskProtocol)
+
+- (void)setAllowBackground:(BOOL)allowBackground {
+    objc_setAssociatedObject(self, @selector(allowBackground), @(allowBackground), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
+
+- (BOOL)allowBackground {
+    return [objc_getAssociatedObject(self, _cmd) boolValue];
+}
 
 - (HJTaskKey)taskKey {
     return objc_getAssociatedObject(self, _cmd);
@@ -33,10 +41,6 @@
 
 - (void)setTaskCompletion:(HJTaskCompletionBlock)taskCompletion {
     objc_setAssociatedObject(self, @selector(taskCompletion), taskCompletion, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-}
-
-- (BOOL)allowBackground {
-    return YES;
 }
 
 - (void)startTask {

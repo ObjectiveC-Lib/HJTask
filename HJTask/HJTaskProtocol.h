@@ -43,16 +43,17 @@ typedef void (^HJTaskCompletionBlock)(HJTaskKey key,
 NS_ASSUME_NONNULL_BEGIN
 
 @protocol HJTaskProtocol <NSObject>
-
 @optional
-@property (nonatomic, copy, nullable) HJTaskKey taskKey;
-@property (nonatomic, copy, nullable) HJTaskProgressBlock taskProgress;
-@property (nonatomic, copy, nullable) HJTaskCompletionBlock taskCompletion;
-@property (nonatomic, assign) BOOL allowBackground; // default: YES
+@property (nonatomic, assign) BOOL allowBackground;         // default: NO
+@property (nonatomic,   copy) HJTaskKey _Nullable taskKey;
+@property (nonatomic,   copy) HJTaskProgressBlock _Nullable taskProgress;
+@property (nonatomic,   copy) HJTaskCompletionBlock _Nullable taskCompletion;
 
 - (void)startTask;
 - (void)cancelTask;
+@end
 
+@interface NSObject (HJTaskProtocol) <HJTaskProtocol>
 @end
 
 NS_ASSUME_NONNULL_END

@@ -10,17 +10,11 @@
 #define HJTask_h
 
 #if __has_include(<HJTask/HJTask.h>)
-
 #import <HJTask/HJTaskManager.h>
 #import <HJTask/HJTaskProtocol.h>
-#import <HJTask/NSObject+HJTaskProtocol.h>
-
-#else /* __has_include */
-
+#else
 #import "HJTaskManager.h"
 #import "HJTaskProtocol.h"
-#import "NSObject+HJTaskProtocol.h"
-
-#endif /* __has_include */
+#endif
 
 #endif /* HJTask_h */
