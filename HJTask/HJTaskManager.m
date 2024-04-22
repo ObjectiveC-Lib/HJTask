@@ -14,7 +14,7 @@
 #define Unlock() pthread_mutex_unlock(&_lock)
 
 @interface HJTaskManager ()
-@property (nonatomic, strong) NSMutableDictionary *setters;
+@property (nonatomic, strong) NSMutableDictionary <HJTaskKey, HJTaskSetter *> *setters;
 @end
 
 @implementation HJTaskManager {
@@ -105,6 +105,14 @@
     Lock();
     HJTaskSetter *setter = _setters[key];
     if (setter) [setter cancel];
+    Unlock();
+}
+
+- (void)cancelAll {
+    Lock();
+    [_setters enumerateKeysAndObjectsUsingBlock:^(HJTaskKey key, HJTaskSetter *setter, BOOL * stop) {
+        if (setter) [setter cancel];
+    }];
     Unlock();
 }
 

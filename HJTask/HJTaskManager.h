@@ -18,6 +18,7 @@ NS_ASSUME_NONNULL_BEGIN
            completion:(nullable HJTaskCompletionBlock)completion;
 
 - (void)cancelWithKey:(HJTaskKey)key;
+- (void)cancelAll;
 
 @end
 
