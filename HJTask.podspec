@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name            = 'HJTask'
-  s.version         = '1.0.7'
+  s.version         = '1.0.8'
   
   s.ios.deployment_target = '9.0'
   

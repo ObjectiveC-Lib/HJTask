@@ -22,7 +22,7 @@
 }
 
 - (void)dealloc {
-    // NSLog(@"HJTaskSetter_dealloc");
+    // NSLog(@"HJTask_Setter_dealloc");
     
     OSAtomicIncrement32(&_sentinel);
     _operation = nil;

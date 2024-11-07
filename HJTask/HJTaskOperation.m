@@ -94,7 +94,7 @@ static UIApplication *HJSharedApplication() {
 }
 
 - (void)dealloc {
-    // NSLog(@"HJTaskOperation_dealloc");
+    // NSLog(@"HJTask_Operation_dealloc");
     
     [_lock lock];
     if ([self isExecuting]) {
@@ -228,6 +228,7 @@ static UIApplication *HJSharedApplication() {
                 __weak typeof(self) _self = self;
                 _executor.taskProgress = ^(HJTaskKey key, NSProgress * _Nullable progress) {
                     __strong typeof(_self) self = _self;
+                    if (!self) return;
                     if (self->_progress) self->_progress(key, progress);
                 };
                 _executor.taskCompletion = ^(HJTaskKey key,
@@ -235,6 +236,7 @@ static UIApplication *HJSharedApplication() {
                                              id _Nullable callbackInfo,
                                              NSError * _Nullable error) {
                     __strong typeof(_self) self = _self;
+                    if (!self) return;
                     if (self->_completion) self->_completion(key, stage, callbackInfo, error);
                     [self performSelector:@selector(finishOperation)
                                  onThread:[self.class taskThread]
@@ -254,6 +256,7 @@ static UIApplication *HJSharedApplication() {
                     if (_taskID == UIBackgroundTaskInvalid) {
                         _taskID = [HJSharedApplication() beginBackgroundTaskWithExpirationHandler:^{
                             __strong __typeof (_self) self = _self;
+                            if (!self) return;
                             if (self) {
                                 [self cancel];
                             }
